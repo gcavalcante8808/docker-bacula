@@ -1,0 +1,161 @@
+Director {
+  Name = "{{ dir_host }}"
+  DIRport = 9101
+  QueryFile = "/etc/bacula/query.sql"
+  Working Directory = "/tmp"
+  Pid Directory = "/tmp"
+  Maximum Concurrent Jobs = 20
+  Password = "{{ dir_pwd }}"
+}
+
+Storage{
+  Name = "{{ sd_host }}"
+  Address = "{{ sd_host }}"
+  SDPort = 9103
+  Password = "{{ sd_pwd }}"
+  Device = FileStorage
+  Media Type = File
+}
+
+Catalog {
+  Name = "{{ catalog_name }}"
+  dbname = "{{ db_name }}"; dbuser="{{ db_user }}"; dbpassword="{{ db_pass }}"; dbaddress = "{{ db_host }}"
+}
+
+Pool {
+  name = File
+  Pool Type = Backup
+  label Format = Local-
+  Recycle = yes
+  AutoPrune = yes
+  VolumeRetention = 365 days
+  Maximum Volume Bytes = 1000G
+  Maximum Volumes = 999
+}
+
+Pool {
+  Name = Weekly-Local
+  Pool Type = Backup
+  label Format = Weekly-Local
+  Recycle = yes
+  Autoprune = yes
+  VolumeRetention = 15 days
+  Maximum Volume Bytes = 512M
+  Maximum Volumes  = 100000
+  UseVolumeOnce = yes
+}
+
+JobDefs {
+  Name = "DefaultJob"
+  Type = Backup
+  Level = Incremental
+  Client = "bacula-fd"
+  Schedule = "DailyCycle"
+  Storage = bacula-sd
+  Messages = Standard
+  Pool = File
+  SpoolAttributes = yes
+  Priority = 10
+  Write Bootstrap = "/var/spool/bacula/%c.bsr"
+}
+
+JobDefs {
+  Name = "DailyBackup"
+  Type = Backup
+  Level = Incremental
+  Storage = bacula-sd
+  Messages = Standard
+  Pool = Weekly-Local
+  Schedule = DailyCycle
+  SpoolAttributes = Yes
+  RunScript{
+    RunsWhen=After
+    RunsOnClient=No
+    Command= "/etc/bacula/clean.sh"
+  }
+}
+
+Schedule {
+  Name = "DailyCycle"
+  Run = Incremental mon-fri at 01:59
+  Run = Differential sat-sun at 02:59
+}
+
+Console {
+   Name = bacula-mon
+   Password = "{{ mon_pwd }}"
+   commandACL = status, .status
+}
+# Reasonable message delivery -- send most everything to email address
+#  and to the console
+Messages {
+  Name = Standard
+#
+# NOTE! If you send to two email or more email addresses, you will need
+#  to replace the %r in the from field (-f part) with a single valid
+#  email address in both the mailcommand and the operatorcommand.
+#  What this does is, it sets the email address that emails would display
+#  in the FROM field, which is by default the same email as they're being
+#  sent to.  However, if you send email to more than one address, then
+#  you'll have to set the FROM address manually, to a single address.
+#  for example, a 'no-reply@mydomain.com', is better since that tends to
+#  tell (most) people that its coming from an automated source.
+
+#
+  mailcommand = "/usr/sbin/bsmtp -h backup.ts3corp.com.br:1025  -f \"\(Bacula\) \<%r\>\" -s \"Bacula: %t %e of %c %l\" %r"
+  operatorcommand = "/usr/sbin/bsmtp -h backup.ts3corp.com.br:1025 -f \"\(Bacula\) \<%r\>\" -s \"Bacula: Intervention needed for %j\" %r"
+  mail = gabriel.cavalcante88@gmail.com = all, !skipped
+  operator = gabriel.cavalcante88@gmail.com = mount
+  console = all, !skipped, !saved
+#
+# WARNING! the following will create a file that you must cycle from
+#          time to time as it will grow indefinitely. However, it will
+#          also keep all your messages if they scroll off the console.
+#
+  append = "/var/log/bacula/bacula.log" = all, !skipped
+  catalog = all
+}
+
+Messages {
+  Name = Daemon
+  mailcommand = "/usr/sbin/bsmtp -h localhost -f \"\(Bacula\) \<%r\>\" -s \"Bacula daemon message\" %r"
+  mail = root@localhost = all, !skipped
+  console = all, !skipped, !saved
+  append = "/var/log/bacula/bacula.log" = all, !skipped
+}
+
+#Default Server: Us
+Client {
+    Name = bacula-fd
+    Address = bacula-fd
+    FDPort = 9102
+    Catalog = "{{ catalog_name }}"
+    Password = "{{ dir_pwd }}"
+    File Retention = 60 days
+    Job Retention = 6 months
+    AutoPrune = yes
+}
+
+Job {
+    Name = "BackupCatalog"
+    Type = Backup
+    Client = bacula-fd
+    FileSet = "Catalog Set"
+    Storage = "{{ sd_host }}"
+    Pool = File
+    Messages = Standard
+}
+
+FileSet {
+    Name = "Catalog Set"
+    Include {
+       Options {
+           signature = MD5
+           compression = GZIP
+       }
+       File = "/var/spool/bacula/bacula.sql"
+    }
+}
+
+
+@|"find /etc/bacula/bacula-dir.conf.d -name '*.conf' -type f -exec echo @{} \;"

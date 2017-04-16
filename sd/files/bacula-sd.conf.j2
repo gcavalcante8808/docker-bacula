@@ -1,0 +1,30 @@
+Storage{
+  Name = "{{ sd_host }}"
+  SDPort = 9103
+  Working Directory = "/tmp"
+  Pid Directory = "/tmp"
+  Maximum Concurrent jobs = 20
+}
+
+Director {
+  Name = "{{ dir_host }}"
+  Password = "{{ sd_pwd }}"
+}
+
+Device { 
+  Name = FileStorage
+  Media Type = File
+  Archive Device = /media/backup
+  LabelMedia = yes
+  Random Access = Yes
+  AutomaticMount = yes;
+  RemovableMedia = no;
+  AlwaysOpen = no
+}
+
+Messages {
+  Name = Standard
+  director = bacula-dir = all
+}
+
+@|"find /etc/bacula/bacula-sd.conf.d -name '*.conf' -type f -exec echo @{} \;"

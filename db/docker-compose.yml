@@ -1,0 +1,11 @@
+version: '2'
+    
+services:
+    bacula-db:
+        image: gcavalcante8808/bacula-db:7.0.5-5
+        build: .
+        environment:
+            POSTGRES_USER: bacula
+            POSTGRES_PASSWORD: bacula
+            POSTGRES_DB: bacula
+

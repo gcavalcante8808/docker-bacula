@@ -1,0 +1,58 @@
+version: '2'
+volumes:
+    db-data:
+    sd-data:
+    dir-data:
+    backup-data:
+    
+services:
+    bacula-db:
+        image: gcavalcante8808/bacula-db:5.2.6
+#        build: db/
+        volumes:
+         - db-data:/var/lib/postgresql/data
+        environment:
+            POSTGRES_USER: bacula
+            POSTGRES_PASSWORD: bacula
+            POSTGRES_DB: bacula
+
+    bacula-fd:
+        image: gcavalcante8808/bacula-fd:5.2.6
+#        build: fd/
+        environment:
+            DIR_PASSWORD: "default_pass_dir"
+            DIR_HOST: bacula-dir
+            MON_PASSWORD: "default_pass_mon"
+        restart: always
+        
+    bacula-sd:
+        image: gcavalcante8808/bacula-sd:5.2.6
+#        build: sd/
+        restart: always
+        volumes:
+         - sd-data:/etc/bacula/bacula-sd.conf.d
+         - backup-data:/media/backup
+        environment:
+            SD_HOST: bacula-sd
+            SD_PASSWORD: "default_pass_sd"
+            DIR_HOST: bacula-dir
+
+    bacula-dir:
+        image: gcavalcante8808/bacula-dir:5.2.6
+#        build: dir/
+        restart: always
+        ports:
+         - 9101:9101
+        volumes:
+         - dir-data:/etc/bacula/bacula-dir.conf.d
+        environment:
+            DB_NAME: bacula
+            DB_USER: bacula
+            DB_PASS: bacula
+            DB_HOST: bacula-db
+            SD_HOST: bacula-sd
+            DIR_HOST: bacula-dir
+            DIR_PASSWORD: "default_pass_dir"
+            SD_PASSWORD: "default_pass_sd"
+            MON_PASSWORD: "default_pass_mon"
+
